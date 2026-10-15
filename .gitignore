@@ -1,0 +1,40 @@
+# Large model weights
+weights/
+*.pt
+
+# Video data
+data/
+*.mp4
+*.avi
+*.mov
+
+# Output files
+output/
+runs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.ipynb_checkpoints/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.log
+*.tmp
