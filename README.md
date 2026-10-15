@@ -1,91 +1,162 @@
-<h1 align=center><font size = 6>YOLOv8-Based Drone Detection: Building a Robust Model with Extensive Data</font></h1>
+# Advanced Drone Detection with SAHI and Adaptive Tracking
 
-<br>  
+YOLOv8-based drone detection enhanced with SAHI (Slicing Aided Hyper Inference), temporal gradient processing, and adaptive confidence tracking for detecting small, fast-moving drones in complex environments.
 
-<img src="https://images.pexels.com/photos/1852984/pexels-photo-1852984.jpeg" height=550 width=1000 alt="https://www.pexels.com/"/>
+## Features
 
-<small>Picture Source: <a href="https://www.pexels.com/tr-tr/@sulimansallehi/">Suliman Sallehi</a></small>
+### 🎯 SAHI Sliced Inference
+- **Tile-based detection** for small objects
+- Configurable slice size and overlap
+- Detects drones that are <10 pixels in full frame
 
-<br>
+### 🔄 Temporal Gradient Enhancement
+- Formula: `p2(t) = p(t) + lambda * (2*p(t) - p(t-offset) - p(t+offset))`
+- Enhances moving objects while suppressing static background
+- Improves detection when drone passes in front of trees
 
-<br>
+### 🎯 Adaptive Confidence Tracking
+- **Progressive threshold lowering** around tracked drones
+- Velocity-capped extrapolation (prevents false detections across image)
+- Only searches near predicted positions with very low confidence
+- Maintains tracking through occlusions
 
-## Abstract
-Unmanned aerial vehicles (UAVs), commonly known as drones, have become increasingly prevalent in various domains, including surveillance, photography, and delivery services. However, the rapid proliferation of drones raises concerns regarding security and privacy threats. To address these concerns, effective drone detection systems are crucial for identifying and tracking drones in real-time. In this research, we present a comprehensive dataset and propose a state-of-the-art drone detection model using the YOLOv8 architecture.
+### 🎨 Channel-Specific Processing
+- Remove green channel to improve contrast when drone is in front of trees
+- Configurable color channel removal (red/green/blue)
 
-## Introduction
-The widespread adoption of drones has led to an urgent need for reliable drone detection systems to ensure the safety and security of public spaces. Drone detection poses unique challenges due to the small size, fast movement, and diverse appearance of drones, making traditional object detection methods insufficient. Therefore, there is a growing demand for advanced detection models that can accurately identify drones in complex environments.
-YOLO (You Only Look Once) is an object detection algorithm that was introduced in 2015 by **Joseph Redmon** et al. It revolutionized the field of computer vision by providing a real-time object detection solution with impressive accuracy.
+### 📏 Size Filtering
+- Filter bounding boxes by size relative to tile
+- Removes large false positives (clouds, birds, buildings)
 
-## Dataset
-To facilitate the development and evaluation of drone detection models, we introduce a novel and comprehensive dataset specifically curated for training and testing drone detection algorithms. The dataset, sourced from the publicly available [YOLO Drone Detection Dataset](https://www.kaggle.com/datasets/muki2003/yolo-drone-detection-dataset) on Kaggle, comprises a diverse set of annotated images captured in various environmental conditions and camera perspectives. The dataset includes instances of drones along with other common objects to enable robust detection and classification.
+## Scripts
 
-## Methodology
-In this study, we employ the YOLOv8 architecture, a popular and highly efficient object detection framework, for drone detection. YOLOv8, which stands for 'You Only Look Once' version 8, utilizes a single neural network to simultaneously predict bounding boxes and class probabilities for multiple objects in an image. This architecture offers real-time performance, making it ideal for drone detection applications.
+### Main Inference: `run_inference_sahi.py`
+Full-featured SAHI inference with all enhancements:
 
-To enhance the model's performance and leverage pre-trained weights, you can utilize YOLOv8x trained best weight in  [HuggingFace repository](https://huggingface.co/doguilmak/Drone-Detection-YOLOv8x/tree/main/weight) 🤗. These weights have been trained on a YOLO Drone Detection Dataset dataset.
+```bash
+python run_inference_sahi.py \
+  --max-frames 300 \
+  --conf 0.1 \
+  --slice-size 512 \
+  --overlap-ratio 0.2 \
+  --max-box-size 0.2 \
+  --temporal-gradient \
+  --temporal-lambda 5 \
+  --temporal-offset 5 \
+  --adaptive-conf \
+  --adaptive-conf-min 0.005 \
+  --adaptive-conf-step 0.005 \
+  --adaptive-max-dist 50 \
+  --adaptive-max-vel 15 \
+  --adaptive-max-lost 3 \
+  --remove-channel green
+```
 
-## Experimental Setup
-To train and evaluate our drone detection model, we utilize the Colab platform, a cloud-based environment that provides access to powerful computing resources and deep learning libraries. Leveraging Colab's GPU acceleration capabilities, we train the YOLOv8 model using our curated dataset and fine-tune its parameters to optimize detection accuracy and efficiency.
+**Parameters:**
+- `--conf`: Base confidence threshold
+- `--slice-size`: Tile size for SAHI (smaller = better for tiny drones)
+- `--max-box-size`: Max box size as fraction of tile (e.g., 0.2 = 1/5)
+- `--temporal-lambda`: Weight for temporal gradient (0 = disabled)
+- `--adaptive-conf`: Enable adaptive confidence tracking
+- `--adaptive-max-dist`: Max distance from predicted position (pixels)
+- `--adaptive-max-vel`: Max velocity cap (pixels/frame)
+- `--remove-channel`: Remove color channel (green/red/blue/none)
 
-## YOLO
+### Basic Inference: `run_inference.py`
+Standard YOLOv8 inference with ByteTrack tracking:
 
+```bash
+python run_inference.py --track --max-box-size 0.2
+```
 
-*   **Single Pass Detection**: YOLO takes a different approach compared to traditional object detection methods that use region proposal techniques. Instead of dividing the image into regions and examining each region separately, YOLO performs detection in a single pass. It divides the input image into a grid and predicts bounding boxes and class probabilities for each grid cell.
+### Video Inspector: `inspect_video_channels.py`
+Manual frame-by-frame channel inspection:
 
-*   **Grid-based Prediction**: YOLO divides the input image into a fixed-size grid, typically, say, 7x7 or 13x13. Each grid cell is responsible for predicting objects that fall within it. For each grid cell, YOLO predicts multiple bounding boxes (each associated with a confidence score) and class probabilities.
+```python
+# Edit variables at top of script:
+frame_number = 150
+zoom_x = 1500
+zoom_y = 500
+zoom_size = 200
 
-*   **Anchor Boxes**: To handle objects of different sizes and aspect ratios, YOLO uses anchor boxes. These anchor boxes are pre-defined boxes of different shapes and sizes. Each anchor box is associated with a specific grid cell. The network predicts offsets and dimensions for anchor boxes relative to the grid cell, along with the confidence scores and class probabilities.
+# Run
+python inspect_video_channels.py
+```
 
-*   **Training**: YOLO is trained using a combination of labeled bounding box annotations and classification labels. The training process involves optimizing the network to minimize the localization loss (related to the accuracy of bounding box predictions) and the classification loss (related to the accuracy of class predictions).
+## Setup
 
-*   **Speed and Accuracy Trade-off**: YOLO achieves real-time object detection by sacrificing some localization accuracy compared to slower methods like Faster R-CNN. However, it still achieves competitive accuracy while providing significantly faster inference speeds, making it well-suited for real-time applications.
+### Environment
+```bash
+conda create -p /path/to/conda/envs/drone_detection python=3.10
+conda activate /path/to/conda/envs/drone_detection
+pip install ultralytics sahi opencv-python pillow matplotlib pandas
+```
 
-<br>
+### Model Weights
+Download pre-trained YOLOv8x weights from [HuggingFace](https://huggingface.co/doguilmak/Drone-Detection-YOLOv8x/tree/main/weight):
+```bash
+mkdir -p weights
+cd weights
+wget https://huggingface.co/doguilmak/Drone-Detection-YOLOv8x/resolve/main/weight/best.pt
+```
 
-Since its introduction, YOLO has undergone several improvements and variations. Different versions such as YOLOv2, YOLOv3, and YOLOv4 have been developed, each introducing enhancements in terms of accuracy, speed, and additional features.
+## Use Cases
 
-It's important to note that this is a high-level overview of YOLO, and the algorithm has many technical details and variations. For a more in-depth understanding, it's recommended to refer to the original YOLO papers and related resources.
+**Small drones in surveillance footage:**
+```bash
+python run_inference_sahi.py --conf 0.1 --slice-size 416 --max-box-size 0.15 --adaptive-conf
+```
 
+**Drone passing in front of trees:**
+```bash
+python run_inference_sahi.py --remove-channel green --temporal-gradient --temporal-lambda 5 --adaptive-conf
+```
 
-## Keywords
+**Fast-moving drones:**
+```bash
+python run_inference_sahi.py --adaptive-max-vel 30 --adaptive-max-dist 80 --track
+```
 
-*   Drone detection
-*   YOLOv8
-*   Object detection
-*   Deep learning
-*   Surveillance
-*   Security
+## How It Works
 
-<br>
+### SAHI (Slicing Aided Hyper Inference)
+- Splits each frame into overlapping tiles (e.g., 512×512)
+- Runs detection on each tile independently
+- Merges results, removing duplicates at tile boundaries
+- A 5-pixel drone in full frame becomes 30+ pixels in a tile
 
-## Results and Discussion
+### Temporal Gradient
+- Enhances pixels that change between past and future frames
+- Moving drone gets bright, static background gets dark
+- Formula uses symmetric difference: `2*p(t) - p(t-5) - p(t+5)`
 
-We present comprehensive results of our drone detection model's performance on both the training and testing datasets. The evaluation metrics include precision, recall, and F1-score, which are standard measures to assess the model's detection accuracy. Additionally, we analyze the model's performance across various environmental conditions and discuss its strengths and limitations.
+### Adaptive Confidence
+1. Drone detected at conf 0.1 → track established
+2. Next frame: try conf 0.1 first
+3. If not found near predicted position:
+   - Try 0.09, then 0.08, then 0.07...
+   - Stop when at least one detection found
+   - Only searches within 50px of predicted position
+4. Velocity capped at 20px/frame to prevent wild extrapolation
 
-<img  src="https://github.com/doguilmak/Drone-Detection-YOLOv8x/blob/main/results/results.png" width=1000  height=400 alt="github.com/doguilmak/"/>
+## Original Work
 
+Based on [Drone-Detection-YOLOv8x](https://github.com/doguilmak/Drone-Detection-YOLOv8x) by [@doguilmak](https://github.com/doguilmak).
 
-## Conclusion
+**Dataset:** [YOLO Drone Detection Dataset](https://www.kaggle.com/datasets/muki2003/yolo-drone-detection-dataset)
 
-Our research addresses the critical need for reliable drone detection systems by proposing a comprehensive dataset and a state-of-the-art detection model using the YOLOv8 architecture. The availability of our curated dataset and the promising performance of our model offer valuable contributions to the field of drone detection. The outcomes of this study can pave the way for enhanced security measures and privacy protection in areas where drones pose potential risks.
+**Related projects:**
+- [Drone-Detection-YOLOv11x](https://github.com/doguilmak/Drone-Detection-YOLOv11x)
+- [Drone-Detection-YOLOv7](https://github.com/doguilmak/Drone-Detection-YOLOv7)
 
-<br>
+## Output
 
-### Drone Detection with YOLOv8x
+- Detection boxes: **Red** for normal detections, **Yellow** for adaptive detections
+- Yellow circles show predicted drone positions
+- Yellow rectangles show adaptive search regions
+- Confidence scores displayed on each detection
+- Output video: `output/<video_name>_detected_sahi.mp4`
 
-In addition to this work, I have also developed drone detection models using YOLOv11x and YOLOv7.
+## License
 
-- You can find the YOLOv11x project or repository [here](https://github.com/doguilmak/Drone-Detection-YOLOv11x).
-
-- You can find the YOLOv7 project or repository [here](https://github.com/doguilmak/Drone-Detection-YOLOv7).
-
-<br>
-
-## Contact Me
-
-If you have something to say to me please contact me:
-
-*	X: [Doguilmak](https://x.com/Doguilmak)
-*	Mail address: doguilmak@gmail.com
-
+This project extends the original Drone-Detection-YOLOv8x work with additional features for small object detection and tracking.
